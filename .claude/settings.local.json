@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(npm list:*)",
+      "Bash(ls -la /Users/arai_takumi/CreateCodeAI/HouseEnergySimulationApp/.env*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
