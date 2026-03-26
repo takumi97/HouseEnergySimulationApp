@@ -16,14 +16,14 @@ export interface SimulationInput {
   solarCapacity: number;
   roofDirection: string;
   roofAngle: number;
-  solarInitialCost: number;
+  solarCost?: number;
 
   // Step 4: Battery
   hasBattery: boolean;
   batteryCapacity: number;
   batteryMaker: string;
   batteryModel: string;
-  batteryInitialCost: number;
+  batteryCost?: number;
 }
 
 export interface MonthlyData {

@@ -5,6 +5,7 @@ import StepIndicator from '../components/StepIndicator';
 import { useSimulation } from '../context/SimulationContext';
 import { runSimulation, REGIONS, DIRECTIONS, ANGLES } from '../utils/calculations';
 import { supabase, ElectricityPlan } from '../lib/supabase';
+import { batteryMakers, getModelsByMaker } from '../data/batteryProducts';
 
 const STEP_LABELS = ['地域・家族情報', '電気代情報', '太陽光設定', '蓄電池設定'];
 
@@ -20,6 +21,8 @@ const PREFECTURES_BY_REGION: Record<string, string[]> = {
   '九州': ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県'],
   '沖縄': ['沖縄県'],
 };
+
+const MANUAL_RATE_KEY = '__manual__';
 
 function SectionTitle({ step, title }: { step: number; title: string }) {
   return (
@@ -37,6 +40,7 @@ export default function InputForm() {
   const { input, setInput, setResult, setCurrentStep } = useSimulation();
   const [step, setStep] = useState(1);
   const [plans, setPlans] = useState<ElectricityPlan[]>([]);
+  const [isManualRate, setIsManualRate] = useState(false);
 
   useEffect(() => {
     async function fetchPlans() {
@@ -77,6 +81,10 @@ export default function InputForm() {
   };
 
   const estimatedAnnualConsumption = Math.max(((input.monthlyElectricCost - 1000) / 30), 100) * 12;
+
+  // Battery maker/model helpers
+  const selectedMakerIsManual = input.batteryMaker === '' || input.batteryMaker === 'その他（手動入力）';
+  const modelsForMaker = selectedMakerIsManual ? [] : getModelsByMaker(input.batteryMaker);
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-50">
@@ -248,18 +256,44 @@ export default function InputForm() {
                 {providers.length > 0 ? (
                   <select
                     className="select-field"
-                    value={input.electricCompany}
-                    onChange={e => updateInput({ electricCompany: e.target.value, electricPlan: '', electricityRate: undefined })}
+                    value={isManualRate ? MANUAL_RATE_KEY : input.electricCompany}
+                    onChange={e => {
+                      if (e.target.value === MANUAL_RATE_KEY) {
+                        setIsManualRate(true);
+                        updateInput({ electricCompany: '', electricPlan: '', electricityRate: undefined });
+                      } else {
+                        setIsManualRate(false);
+                        updateInput({ electricCompany: e.target.value, electricPlan: '', electricityRate: undefined });
+                      }
+                    }}
                   >
                     <option value="">選択してください</option>
                     {providers.map(p => (
                       <option key={p} value={p}>{p}</option>
                     ))}
+                    <option value={MANUAL_RATE_KEY}>プランなし（単価を手動入力）</option>
                   </select>
                 ) : (
+                  <select
+                    className="select-field"
+                    value={isManualRate ? MANUAL_RATE_KEY : ''}
+                    onChange={e => {
+                      if (e.target.value === MANUAL_RATE_KEY) {
+                        setIsManualRate(true);
+                        updateInput({ electricCompany: '', electricPlan: '', electricityRate: undefined });
+                      } else {
+                        setIsManualRate(false);
+                      }
+                    }}
+                  >
+                    <option value="">電力会社を入力 または 単価を手動入力</option>
+                    <option value={MANUAL_RATE_KEY}>プランなし（単価を手動入力）</option>
+                  </select>
+                )}
+                {!isManualRate && providers.length === 0 && (
                   <input
                     type="text"
-                    className="input-field"
+                    className="input-field mt-2"
                     value={input.electricCompany}
                     placeholder="例：東京電力、関西電力"
                     onChange={e => updateInput({ electricCompany: e.target.value })}
@@ -267,47 +301,66 @@ export default function InputForm() {
                 )}
               </div>
 
-              <div>
-                <label className="label">料金プラン <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
-                {filteredPlans.length > 0 ? (
-                  <>
-                    <select
-                      className="select-field"
+              {isManualRate ? (
+                <div>
+                  <label className="label">電気料金単価 <span className="text-accent-600">*</span></label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      className="input-field pr-20"
+                      value={input.electricityRate ?? ''}
+                      min={0}
+                      step={0.01}
+                      placeholder="30"
+                      onChange={e => updateInput({ electricityRate: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">円/kWh</span>
+                  </div>
+                  <p className="help-text">電気の買電単価を入力してください（検針票に記載があります）</p>
+                </div>
+              ) : (
+                <div>
+                  <label className="label">料金プラン <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
+                  {filteredPlans.length > 0 ? (
+                    <>
+                      <select
+                        className="select-field"
+                        value={input.electricPlan}
+                        onChange={e => {
+                          const plan = filteredPlans.find(p => p.plan_name === e.target.value);
+                          updateInput({
+                            electricPlan: e.target.value,
+                            electricityRate: plan?.rate_per_kwh,
+                          });
+                        }}
+                      >
+                        <option value="">選択してください</option>
+                        {filteredPlans.map(p => (
+                          <option key={p.id} value={p.plan_name}>{p.plan_name}</option>
+                        ))}
+                      </select>
+                      {input.electricityRate && (
+                        <p className="help-text text-primary-600 font-medium">
+                          単価 {input.electricityRate}円/kWh で計算します
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <input
+                      type="text"
+                      className="input-field"
                       value={input.electricPlan}
-                      onChange={e => {
-                        const plan = filteredPlans.find(p => p.plan_name === e.target.value);
-                        updateInput({
-                          electricPlan: e.target.value,
-                          electricityRate: plan?.rate_per_kwh,
-                        });
-                      }}
-                    >
-                      <option value="">選択してください</option>
-                      {filteredPlans.map(p => (
-                        <option key={p.id} value={p.plan_name}>{p.plan_name}</option>
-                      ))}
-                    </select>
-                    {input.electricityRate && (
-                      <p className="help-text text-primary-600 font-medium">
-                        単価 {input.electricityRate}円/kWh で計算します
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={input.electricPlan}
-                    placeholder="例：従量電灯B、スマートライフ"
-                    onChange={e => updateInput({ electricPlan: e.target.value })}
-                  />
-                )}
-              </div>
+                      placeholder="例：従量電灯B、スマートライフ"
+                      onChange={e => updateInput({ electricPlan: e.target.value })}
+                    />
+                  )}
+                </div>
+              )}
 
               <div className="bg-stone-50 rounded-lg p-4 border border-stone-200 text-sm text-stone-600">
                 <p className="font-semibold text-stone-700 mb-2 text-xs uppercase tracking-wider">計算上の前提条件</p>
                 <ul className="space-y-1 text-sm text-stone-500">
-                  <li>電力購入単価：30円/kWh（全国平均目安）</li>
+                  <li>電力購入単価：{input.electricityRate ? `${input.electricityRate}円/kWh（入力値）` : '30円/kWh（全国平均目安）'}</li>
                   <li>基本料金：1,000円/月（目安）</li>
                   <li>FIT売電価格：16円/kWh（2024年度）</li>
                 </ul>
@@ -398,21 +451,24 @@ export default function InputForm() {
               </div>
 
               <div>
-                <label className="label">太陽光パネル初期費用 <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
+                <label className="label">太陽光パネル初期費用（税込） <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
                 <div className="relative">
                   <input
                     type="number"
-                    className="input-field pr-14"
-                    value={input.solarInitialCost || ''}
+                    className="input-field pr-10"
+                    value={input.solarCost !== undefined ? input.solarCost : ''}
                     min={0}
-                    step={10}
-                    placeholder="未入力の場合は相場価格で計算"
-                    onChange={e => updateInput({ solarInitialCost: Number(e.target.value) })}
+                    step={10000}
+                    placeholder="1500000"
+                    onChange={e => updateInput({ solarCost: e.target.value === '' ? undefined : Number(e.target.value) })}
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm">万円</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">円</span>
                 </div>
                 <p className="help-text">
-                  未入力の場合：{input.solarCapacity.toFixed(1)}kW × 20万円/kW ＝ 約{(input.solarCapacity * 20).toFixed(0)}万円で計算
+                  パネル・工事費の総額を入力してください。補助金適用後の実質負担額でもOKです。
+                  {input.solarCost === undefined && (
+                    <span className="block mt-1">未入力の場合：{input.solarCapacity.toFixed(1)}kW × 20万円/kW ＝ 約{(input.solarCapacity * 20).toFixed(0)}万円で計算</span>
+                  )}
                 </p>
               </div>
 
@@ -479,6 +535,49 @@ export default function InputForm() {
               {input.hasBattery && (
                 <>
                   <div>
+                    <label className="label">メーカー <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
+                    <select
+                      className="select-field"
+                      value={input.batteryMaker || 'その他（手動入力）'}
+                      onChange={e => {
+                        const maker = e.target.value === 'その他（手動入力）' ? '' : e.target.value;
+                        updateInput({ batteryMaker: maker, batteryModel: '' });
+                      }}
+                    >
+                      {batteryMakers.map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {!selectedMakerIsManual && (
+                    <div>
+                      <label className="label">型番 <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
+                      <select
+                        className="select-field"
+                        value={input.batteryModel}
+                        onChange={e => {
+                          const model = modelsForMaker.find(m => m.model === e.target.value);
+                          updateInput({
+                            batteryModel: e.target.value,
+                            batteryCapacity: model ? model.capacity : input.batteryCapacity,
+                          });
+                        }}
+                      >
+                        <option value="">選択してください</option>
+                        {modelsForMaker.map(m => (
+                          <option key={m.model} value={m.model}>{m.model}（{m.capacity}kWh・{m.type}）</option>
+                        ))}
+                      </select>
+                      {input.batteryModel && (
+                        <p className="help-text text-primary-600 font-medium">
+                          容量 {input.batteryCapacity}kWh で計算します
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
                     <label className="label">蓄電池容量 <span className="text-accent-600">*</span></label>
                     <div className="relative">
                       <input
@@ -493,7 +592,11 @@ export default function InputForm() {
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">kWh</span>
                     </div>
-                    <p className="help-text">蓄電池の容量を入力してください（例: 9.8kWh）。一般家庭では7〜10kWhが標準的です。</p>
+                    <p className="help-text">
+                      {selectedMakerIsManual
+                        ? '蓄電池の容量を入力してください（例: 9.8kWh）。一般家庭では7〜10kWhが標準的です。'
+                        : '型番を選択すると自動入力されます。手動で変更も可能です。'}
+                    </p>
                   </div>
 
                   <div className="bg-stone-50 rounded-lg p-4 border border-stone-200 text-sm">
@@ -514,43 +617,24 @@ export default function InputForm() {
                   </div>
 
                   <div>
-                    <label className="label">メーカー <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      value={input.batteryMaker}
-                      placeholder="例：パナソニック、テスラ"
-                      onChange={e => updateInput({ batteryMaker: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="label">型番 <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      value={input.batteryModel}
-                      placeholder="例：LJ-SF100A"
-                      onChange={e => updateInput({ batteryModel: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="label">蓄電池初期費用 <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
+                    <label className="label">蓄電池初期費用（税込） <span className="text-stone-400 font-normal text-xs">（任意）</span></label>
                     <div className="relative">
                       <input
                         type="number"
-                        className="input-field pr-14"
-                        value={input.batteryInitialCost || ''}
+                        className="input-field pr-10"
+                        value={input.batteryCost !== undefined ? input.batteryCost : ''}
                         min={0}
-                        step={10}
-                        placeholder="未入力の場合は相場価格で計算"
-                        onChange={e => updateInput({ batteryInitialCost: Number(e.target.value) })}
+                        step={10000}
+                        placeholder="1500000"
+                        onChange={e => updateInput({ batteryCost: e.target.value === '' ? undefined : Number(e.target.value) })}
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm">万円</span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-stone-400 text-sm pointer-events-none">円</span>
                     </div>
                     <p className="help-text">
-                      未入力の場合：{input.batteryCapacity.toFixed(1)}kWh × 15万円/kWh ＝ 約{(input.batteryCapacity * 15).toFixed(0)}万円で計算
+                      蓄電池・工事費の総額を入力してください。補助金適用後の実質負担額でもOKです。
+                      {input.batteryCost === undefined && (
+                        <span className="block mt-1">未入力の場合：{input.batteryCapacity.toFixed(1)}kWh × 15万円/kWh ＝ 約{(input.batteryCapacity * 15).toFixed(0)}万円で計算</span>
+                      )}
                     </p>
                   </div>
                 </>

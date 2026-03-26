@@ -14,12 +14,10 @@ const defaultInput: SimulationInput = {
   solarCapacity: 5.0,
   roofDirection: '南',
   roofAngle: 30,
-  solarInitialCost: 0,
   hasBattery: false,
   batteryCapacity: 7.0,
   batteryMaker: '',
   batteryModel: '',
-  batteryInitialCost: 0,
 };
 
 interface SimulationContextType {

@@ -62,12 +62,10 @@ export default function MyPage() {
       solarCapacity: sim.solar_capacity,
       roofDirection: sim.roof_direction,
       roofAngle: sim.roof_angle,
-      solarInitialCost: 0,
       hasBattery: sim.has_battery,
       batteryCapacity: sim.battery_capacity,
       batteryMaker: '',
       batteryModel: '',
-      batteryInitialCost: 0,
     });
 
     // Restore result from saved data

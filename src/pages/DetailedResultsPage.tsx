@@ -243,13 +243,13 @@ export default function DetailedResultsPage() {
                   { label: 'パネル容量', value: `${input.solarCapacity}kW` },
                   { label: '屋根の向き', value: `${input.roofDirection}向き` },
                   { label: '屋根の傾斜角', value: `${input.roofAngle}°` },
-                  { label: '太陽光初期費用', value: input.solarInitialCost > 0 ? `${input.solarInitialCost}万円（入力値）` : `${(input.solarCapacity * 20).toFixed(0)}万円（相場）` },
+                  { label: '太陽光初期費用', value: input.solarCost !== undefined ? `${input.solarCost.toLocaleString('ja-JP')}円（入力値）` : `${(input.solarCapacity * 20).toFixed(0)}万円（相場）` },
                   { label: '蓄電池', value: input.hasBattery ? 'あり' : 'なし' },
                   ...(input.hasBattery ? [
                     { label: '蓄電池容量', value: `${input.batteryCapacity}kWh` },
                     ...(input.batteryMaker ? [{ label: 'メーカー', value: input.batteryMaker }] : []),
                     ...(input.batteryModel ? [{ label: '型番', value: input.batteryModel }] : []),
-                    { label: '蓄電池初期費用', value: input.batteryInitialCost > 0 ? `${input.batteryInitialCost}万円（入力値）` : `${(input.batteryCapacity * 15).toFixed(0)}万円（相場）` },
+                    { label: '蓄電池初期費用', value: input.batteryCost !== undefined ? `${input.batteryCost.toLocaleString('ja-JP')}円（入力値）` : `${(input.batteryCapacity * 15).toFixed(0)}万円（相場）` },
                   ] : []),
                 ].map(item => (
                   <div key={item.label} className="flex justify-between gap-4">

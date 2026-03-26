@@ -112,12 +112,16 @@ export function runSimulation(input: SimulationInput): SimulationResult {
     };
   });
 
-  // Initial cost
-  const solarCost = input.solarInitialCost > 0 ? input.solarInitialCost * 10000 : input.solarCapacity * 200000;
-  const batteryCost = input.hasBattery
-    ? (input.batteryInitialCost > 0 ? input.batteryInitialCost * 10000 : input.batteryCapacity * 150000)
+  // Initial cost (solarCost / batteryCost are in yen; undefined means use default estimate)
+  const solarCostAmount = (input.solarCost !== undefined && input.solarCost >= 0)
+    ? input.solarCost
+    : input.solarCapacity * 200000;
+  const batteryCostAmount = input.hasBattery
+    ? ((input.batteryCost !== undefined && input.batteryCost >= 0)
+        ? input.batteryCost
+        : input.batteryCapacity * 150000)
     : 0;
-  const totalInitialCost = solarCost + batteryCost;
+  const totalInitialCost = solarCostAmount + batteryCostAmount;
 
   // Long-term simulation (20 years)
   const longTermData: YearlyData[] = [];
