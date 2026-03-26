@@ -7,6 +7,7 @@ import ResultsPage from './pages/ResultsPage';
 import DetailedResultsPage from './pages/DetailedResultsPage';
 import LoginPage from './pages/LoginPage';
 import MyPage from './pages/MyPage';
+import CalculationPage from './pages/CalculationPage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/detailed" element={<DetailedResultsPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/mypage" element={<MyPage />} />
+            <Route path="/calculation" element={<CalculationPage />} />
           </Routes>
         </BrowserRouter>
       </SimulationProvider>

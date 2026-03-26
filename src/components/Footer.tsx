@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function Footer() {
   return (
     <footer className="bg-white border-t border-stone-200 mt-20">
@@ -16,6 +18,14 @@ export default function Footer() {
             <p className="text-xs text-stone-400 max-w-xs leading-relaxed">
               太陽光発電・蓄電池導入の経済効果を無料で試算できるシミュレーターです。
             </p>
+            <div className="mt-3">
+              <Link
+                to="/calculation"
+                className="text-xs text-stone-400 hover:text-primary-700 hover:underline transition-colors"
+              >
+                計算ロジックについて
+              </Link>
+            </div>
           </div>
           <p className="text-xs text-stone-400 max-w-sm leading-relaxed">
             ※ 本シミュレーションの結果は概算値です。実際の経済効果は設置環境・使用状況・電力会社のプラン等により異なります。導入の判断は専門業者にご相談ください。
